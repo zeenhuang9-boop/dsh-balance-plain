@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dsh-balance-plain · preview</title>
+<style>
+  html,body{margin:0;height:100%;background:#f7f8fa;font-family:system-ui,"Microsoft YaHei",sans-serif;overflow:hidden}
+  /* 模拟真实侧栏结构（dsh-claude-style 打的那几个 data-dsh-claude-part 标记）：
+     sidebar-column / region-area(列表，flex:1) / foot-area(footer，flex:0 0 auto) / settings-area(装账号行)
+     读数会作为 settings-area 的第一个子节点插进来，撑高 footer、挤占列表区。 */
+  #sidebar{position:fixed;left:0;top:0;bottom:0;width:280px;background:#f7f2e9;
+    display:flex;flex-direction:column;padding:6px 12px;box-sizing:border-box;
+    transition:width .2s ease;overflow:hidden;color:#1f1b14}
+  #sidebar.collapsed{width:64px}
+  #sidebar.collapsed .region,#sidebar.collapsed .foot{display:none}
+  .region{flex:1 1 0%;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:2px}
+  .region .label{font:500 12px system-ui;color:#8a8378;padding:6px 4px}
+  .region .row{padding:5px 8px;border-radius:6px;font:500 13px system-ui;color:#3a342b;white-space:nowrap;overflow:hidden}
+  .region .row.active{background:rgba(0,0,0,.05)}
+  .foot{flex:0 0 auto;display:flex;flex-direction:column;padding:8px 12px 6px;margin:0 -12px -6px;border-top:1px solid rgba(31,27,20,.05)}
+  [data-dsh-claude-part~="settings-area"]{width:100%;min-width:0}
+  .triggerRow{margin:4px -2px;position:relative}
+  #account{display:flex;align-items:center;gap:8px;padding:0 8px;border-radius:10px;height:32px;
+    font:500 13.5px system-ui;color:#2b2b2b;cursor:pointer;white-space:nowrap;background:transparent;border:0;width:100%;text-align:left}
+  #account:hover{background:rgba(0,0,0,.04)}
+  .avatar{width:24px;height:24px;border-radius:50%;background:#2b2b2b;display:inline-block;flex:0 0 24px}
+  /* 模拟聊天区与输入框：让 isChatRoot() 成立 */
+  #composer{position:fixed;left:300px;right:24px;bottom:24px;height:46px;border:1px solid #ddd;
+    border-radius:10px;background:#fff}
+  #report{position:fixed;left:300px;top:16px;right:16px;font:12.5px/1.7 ui-monospace,Consolas,monospace;
+    white-space:pre-wrap;color:#222;background:#fff;border:1px solid #eee;border-radius:8px;padding:10px 12px;max-height:88vh;overflow:auto}
+  body.dark{background:#1b1d22}
+  body.dark #sidebar{background:#22242a;color:#e6e8ec}
+  body.dark #account{color:#e6e8ec}
+  body.dark .region .row{color:#d8dae0}
+  body.dark .region .row.active{background:rgba(255,255,255,.06)}
+  body.dark .foot{border-top-color:rgba(255,255,255,.06)}
+  body.dark #composer{background:#24262c;border-color:#333}
+  body.dark #report{background:#1f2127;color:#ddd;border-color:#2c2f36}
+</style>
+</head>
+<body>
+<div id="sidebar" data-dsh-claude-part="sidebar-column">
+  <div class="region" data-dsh-claude-part="region-area">
+    <div class="label">工作区</div>
+    <div class="row">my-workspace</div>
+    <div class="row active">示例会话 · 周报整理</div>
+    <div class="row">team-project</div>
+    <div class="row">sandbox</div>
+    <div class="row">重构登录模块</div>
+    <div class="row">排查构建失败</div>
+    <div class="row">编写接口测试</div>
+    <div class="row">整理发布清单</div>
+    <div class="row">docs-site</div>
+    <div class="row">notes</div>
+    <div class="row">清理过期分支</div>
+  </div>
+  <div class="foot" data-dsh-claude-part="foot-area">
+    <!-- 读数会被插到 settings-area 里的第一个位置（账号行上方） -->
+    <div data-dsh-claude-part="settings-area">
+      <div class="triggerRow" data-dsh-claude-part="settings-trigger">
+        <button id="account" role="button" tabindex="0" aria-expanded="false">
+          <span class="avatar"></span><span>示例账号</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="composer" data-composer-input="true" role="textbox" aria-multiline="true" contenteditable="false"></div>
+<div id="report">loading…</div>
+
+<script>
+(function () {
+  var qs = new URLSearchParams(location.search)
+  var scenario = qs.get('s') || 'normal'
+  if (qs.get('dark') === '1') document.body.classList.add('dark')
+  if (qs.get('collapse') === '1') document.getElementById('sidebar').classList.add('collapsed')
+
+  var nowSec = Math.floor(Date.now() / 1000)
+  var PAY = {
+    normal: { ok: true, totalBalance: 11.381819, bonusBalance: 0, rechargeBalance: 11.381819,
+      currency: 'CNY', balanceSource: 'apikey', updatedAt: new Date().toISOString(),
+      isPeak: false, peakNextChangeAt: nowSec + 3 * 3600 + 17 * 60, peakHolidays: [],
+      todayUsage: 0.684864, todayUsageCurrency: 'CNY', usageMode: 'ledger', version: '0.4.2' },
+    peak: { ok: true, totalBalance: 11.381819, currency: 'CNY', isPeak: true,
+      peakNextChangeAt: nowSec + 42 * 60, todayUsage: 0.684864, todayUsageCurrency: 'CNY', version: '0.4.2' },
+    alert: { ok: true, totalBalance: 3.2, currency: 'CNY', isPeak: false,
+      peakNextChangeAt: nowSec + 90 * 60, todayUsage: 1.234, todayUsageCurrency: 'CNY', version: '0.4.2' },
+    error: { ok: false, code: 'NO_KEY', error: '未找到 DEEPSEEK_API_KEY',
+      todayUsage: 0.684864, todayUsageCurrency: 'CNY', version: '0.4.2' },
+  }
+  var SIZE = { scale: 0.6, turnCostOn: true, turnCostCloseMs: 5000, version: '0.4.2' }
+  var SETTINGS = { ok: true, settings: { alert: { on: true, below: 5, msg: '余额预警：当前余额已低于设定值 {below}', autoClose: false, ttlSec: 6 } } }
+  var lastTurn = { ok: true, seq: 7, turn: 3, amount: null, tokens: null, ts: null }
+
+  window.__reqs = []
+  window.fetch = function (url) {
+    window.__reqs.push(String(url))
+    var body = null
+    if (String(url).indexOf('/balance.json') >= 0) body = PAY[scenario] || PAY.normal
+    else if (String(url).indexOf('/last-turn.json') >= 0) body = lastTurn
+    else if (String(url).indexOf('/size.json') >= 0) body = SIZE
+    else if (String(url).indexOf('/usage-settings.json') >= 0) body = SETTINGS
+    return Promise.resolve({ ok: true, status: 200, json: function () { return Promise.resolve(body) } })
+  }
+  if (qs.get('turn') === '1') {
+    setTimeout(function () {
+      lastTurn = { ok: true, seq: 8, turn: 4, amount: 0.0123456, tokens: 12345, ts: Date.now() }
+    }, 2000)
+  }
+
+  // 点账号行 → 模拟账户菜单：出现「账户用量，点击刷新」等行（class 与真实菜单一致）
+  document.getElementById('account').addEventListener('click', function () {
+    var old = document.getElementById('pop')
+    if (old) { old.remove(); return }
+    var p = document.createElement('div')
+    p.id = 'pop'
+    p.style.cssText = 'position:fixed;left:12px;bottom:64px;width:220px;background:#fbf7ef;' +
+      'border:1px solid #e5ded1;border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999'
+    var mk = function (t) {
+      var d = document.createElement('div')
+      d.className = 'dsh-claude-account-popover-row'
+      d.setAttribute('role', 'button')
+      d.style.cssText = 'padding:10px 12px;border-radius:8px;font:13.5px system-ui;color:#2b2b2b;cursor:pointer'
+      d.textContent = t
+      return d
+    }
+    p.appendChild(mk('账户用量，点击刷新'))
+    p.appendChild(mk('设置'))
+    p.appendChild(mk('退出登录'))
+    document.body.appendChild(p)
+  })
+})();
+</script>
+<script src="../assets/whale-widget.js"></script>
+<script>
+(function () {
+  function partOf(el) {
+    var p = el && el.closest ? el.closest('[data-dsh-claude-part]') : null
+    return p ? p.getAttribute('data-dsh-claude-part') : null
+  }
+  function rect(el) {
+    if (!el) return null
+    var r = el.getBoundingClientRect()
+    return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]
+  }
+  function snap() {
+    var emb = document.getElementById('dshbp-embed')
+    var sa = document.querySelector('[data-dsh-claude-part~="settings-area"]')
+    var foot = document.querySelector('[data-dsh-claude-part~="foot-area"]')
+    var region = document.querySelector('[data-dsh-claude-part~="region-area"]')
+    var acc = document.getElementById('account')
+    return {
+      // 读数是否真的嵌在侧栏 footer 的 settings-area 里（而不是 body 上的浮层）
+      embedExists: !!emb,
+      embedParentPart: partOf(emb),
+      embedIsFirstInSettingsArea: !!(emb && sa && sa.firstElementChild === emb),
+      floatingRootExists: !!document.getElementById('dshbp-root'),
+      lineText: emb ? (emb.querySelector('.dshbp-line') || {}).textContent : null,
+      toastText: (function () {
+        var t = emb && emb.querySelector('.dshbp-toastline')
+        return t && t.style.display !== 'none' ? t.textContent : null
+      })(),
+      popRowText: (function () {
+        var c = document.querySelector('[data-dshbp-poprow]')
+        return c ? c.textContent : null
+      })(),
+      rect: { embed: rect(emb), settingsArea: rect(sa), foot: rect(foot), region: rect(region), account: rect(acc) },
+      pointer: emb ? getComputedStyle(emb).pointerEvents : null,
+      color: emb ? getComputedStyle(emb).color : null,
+      bg: emb ? getComputedStyle(emb).backgroundColor : null,
+      imgs: document.images.length,
+      audios: document.querySelectorAll('audio').length,
+      requests: window.__reqs.slice(-4),
+    }
+  }
+  window.__snapNow = function () {
+    var s = snap()
+    document.getElementById('report').textContent = JSON.stringify(s, null, 2)
+    return s
+  }
+  setTimeout(window.__snapNow, 3000)
+})();
+</script>
+</body>
+</html>

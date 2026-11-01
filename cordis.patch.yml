@@ -1,0 +1,15 @@
+# ============================================================================
+# dsh-balance-plain —— DSH bundle patch
+# ============================================================================
+# 这是插件的"挂载声明"。DSH 启动时按 bundle 层栈叠加各插件 patch，
+# 本文件把侧栏余额读数挂进 Web profile 的配置树。
+#
+# 安装方式：
+#   dsh plugin --profile web add https://github.com/zeenhuang9-boop/dsh-balance-plain
+# 或本地开发安装：
+#   dsh plugin --profile web add link:<本目录绝对路径>
+# ============================================================================
+
+- insert:
+    - id: dsh-balance-plain
+      name: dsh-balance-plain

@@ -1,0 +1,41 @@
+{
+  "name": "dsh-balance-plain",
+  "version": "0.5.0",
+  "description": "DSH 侧栏底部的 DeepSeek 余额纯文本读数：余额 / 今日已用 / 峰谷倒计时 / 每轮消耗 / 余额预警，真嵌入侧栏 footer；无鲸鱼、无按压、无音效、无菜单。A text-only DeepSeek balance readout embedded in the DSH sidebar footer.",
+  "author": "zeenhuang9-boop",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "balance",
+    "usage",
+    "sidebar",
+    "widget"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "icon": "./icon.png",
+  "files": [
+    "lib",
+    "assets",
+    "icon.png",
+    "cordis.patch.yml",
+    "README.md",
+    "PROVENANCE.md",
+    "screenshots.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zeenhuang9-boop/dsh-balance-plain.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zeenhuang9-boop/dsh-balance-plain/issues"
+  },
+  "homepage": "https://github.com/zeenhuang9-boop/dsh-balance-plain#readme",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
